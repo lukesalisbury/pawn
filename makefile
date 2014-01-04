@@ -9,7 +9,7 @@
 
 
 #Default Settings
-include ../setting.mk
+include setting.mk
 
 include makefiles/$(BUILDOS).make
 ifneq ($(CUSTOMSETTINGS), )

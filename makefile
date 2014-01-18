@@ -39,7 +39,7 @@ else
 endif
 
 ifeq ($(BIN), )
-	BIN = mokoipawnc$(PAWN)$(BINEXT)
+	BIN = pawn_compiler$(PAWN)$(BINEXT)
 endif
 
 COMPILER_LIBS = $(OPTIMIZER) $(DEBUG) -DHAVE_STDINT_H  $(PLATFORM_LIBS)

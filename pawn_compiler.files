@@ -67,3 +67,4 @@ src/pawn3/sc2.c
 src/pawn3/sc1.c
 src/pawn3/memfile.c
 src/pawn3/lstring.c
+setting.mk

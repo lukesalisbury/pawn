@@ -1,15 +1,8 @@
-pawn/src
-
-F:/supportlibs/include
-F:/supportlibs/include/atk-1.0
-F:/supportlibs/include/cairo
-F:/supportlibs/include/gdk-pixbuf-2.0
-F:/supportlibs/include/glib-2.0
-F:/supportlibs/include/gtk-2.0
-F:/supportlibs/include/pango-1.0
-F:/supportlibs/lib/gtk-2.0/include
-F:/supportlibs/lib/glib-2.0/include
-F:/supportlibs/include/libsoup-2.4
+C:/dev/supportlibs/include
+C:/dev/supportlibs/include/glib-2.0
+C:/dev/supportlibs/include/gtk-2.0
+C:/dev/supportlibs/lib/gtk-2.0/include
+C:/dev/supportlibs/lib/glib-2.0/include
 
 /usr/include/glib-2.0
 /usr/include/gtk-3.0

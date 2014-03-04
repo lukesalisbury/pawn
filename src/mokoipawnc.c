@@ -23,22 +23,34 @@ int compiler_main( int argc, char *argv[], int (*error_handling)(int number, cha
 int ( *compiler_main )( int argc, char *argv[], int (*error_handling)(int number, char * message, char *filename, int firstline, int lastline, va_list argptr) );
 #endif
 
-
-GString * xml_content = NULL;
 gboolean xml_output = FALSE;
 gboolean ignore_errors = FALSE;
+
+GString * xml_content = NULL;
+
 GModule * compiler = NULL;
 int fatal_error_count = 0;
 
 gboolean use_original_filename = FALSE;
-char * original_filename = NULL;
+
 char * source_filepath = NULL;
-char * output_directory = NULL;
-char * routines_directory = NULL;
-char * binary_directory = NULL;
-char * include_directory = NULL;
-char * program_directory = NULL;
+char * source_filename = NULL;
+char * source_directory = NULL;
+char * temporary_filepath = NULL;
+
 char * output_filename = NULL;
+char * output_directory = NULL;
+char * output_filename_64 = NULL;
+char * output_filename_32 = NULL;
+
+char * program_directory = NULL;
+char * project_directory = NULL;
+char * routines_directory = NULL;
+char * include_directory = NULL;
+
+char * filename = NULL;
+
+
 
 int handling_error_code( int number, char * message, char *filename, int firstline, int lastline, va_list argptr )
 {
@@ -64,7 +76,7 @@ int handling_error_code( int number, char * message, char *filename, int firstli
 	if ( strcmp( source_filepath, filename ) == 0  )
 	{
 		if ( use_original_filename )
-			source_file = original_filename;
+			source_file = source_filename;
 	}
 
 	if ( number > 0 && number < 300 )
@@ -121,49 +133,6 @@ void fix_path( gchar * str )
 	}
 }
 
-void main_args( int argc, char *argv[])
-{
-	int c = argc;
-	while ( c > 1 ) {
-		--c;
-		if ( argv[c][0] != '-' )
-		{
-			source_filepath = g_strdup(argv[c]);
-		}
-		else if ( !g_strcmp0("--xmloutput", argv[c]) )
-		{
-			xml_output = TRUE;
-		}
-		else if ( g_str_has_prefix( argv[c], "--output-dir=" ) )
-		{
-			char * dir = argv[c] + 13;
-			binary_directory = g_strdup(dir);
-		}
-		else if ( g_str_has_prefix( argv[c], "--routines-dir=" ) )
-		{
-			char * dir = argv[c] + 15;
-			routines_directory = g_strdup(dir);
-		}
-		else if ( g_str_has_prefix( argv[c], "--name=" ) )
-		{
-			char * dir = argv[c] + 7;
-			original_filename = g_strdup(dir);
-			use_original_filename = TRUE;
-		}
-	}
-}
-
-void print_args( int argc, char *argv[])
-{
-
-	int c = argc;
-	while ( c > 1 ) {
-		--c;
-		g_printerr("%d: %s\n", c, argv[c] );
-	}
-}
-
-
 gchar * get_global_include_path( )
 {
 	gchar * directory = NULL;
@@ -200,11 +169,73 @@ gchar * get_global_include_path( )
 }
 
 
+void main_args( int argc, char *argv[])
+{
+	int c = argc;
+	while ( c > 1 ) {
+		--c;
+		if ( argv[c][0] != '-' )
+		{
+			source_filepath = g_strdup(argv[c]);
+			fix_path( source_filepath );
+
+			source_directory = g_path_get_dirname(source_filepath);
+			source_filename = g_path_get_basename(source_filepath);
+
+			routines_directory = g_build_path( G_DIR_SEPARATOR_S, source_directory, "routines", NULL );
+		}
+		else if ( !g_strcmp0("--xmloutput", argv[c]) )
+		{
+			xml_output = TRUE;
+		}
+		else if ( g_str_has_prefix( argv[c], "--temporary=" ) )
+		{
+			char * dir = argv[c] + 12;
+			temporary_filepath = g_strdup(dir);
+		}
+		else if ( g_str_has_prefix( argv[c], "--project=" ) )
+		{
+			char * dir = argv[c] + 10;
+			project_directory = g_strdup(dir);
+		}
+	}
+}
+
+void print_args( int argc, char *argv[])
+{
+
+	int c = argc;
+	while ( c > 1 ) {
+		--c;
+		g_printerr("%d: %s\n", c, argv[c] );
+	}
+}
+
+
+// Strip file extension
+char * strip_file_extension( char * input_filename )
+{
+	char * output_filename = g_strdup( input_filename );
+	char * dotpos = g_utf8_strrchr( output_filename, -1, '.' );
+	if ( dotpos )
+	{
+		*dotpos = '\0';
+	}
+
+	return output_filename;
+}
+
+/*
+ pawn_compiler $file --temporary=$file --project=$dir
+ --temporary use this file instead.
+ --project base of the project.
+*/
+
+
 int main( int argc, char *argv[] )
 {
 	int arg_c = 6;
-	char ** arg_v = g_new0(char*, arg_c);
-
+	char * arg_v[6];
 
 	//0: Current executable
 	program_directory = g_path_get_dirname(argv[0]);
@@ -216,103 +247,95 @@ int main( int argc, char *argv[] )
 	{
 		include_directory = g_strdup(".");
 	}
+
 	// Scan arguments
 	main_args(argc, argv);
 	if ( !source_filepath )
 	{
-		g_print("Pawn Compiler\n");
+		g_print("Mokoi Pawn Compiler\n");
 		g_print("No file given\n");
+		g_print("\n");
 		return 0;
 	}
-	// If original filename is not giving
-	if ( !original_filename )
-	{
-		original_filename = g_path_get_basename( source_filepath );
-	}
-	//g_printerr("original_filename: %s\n", original_filename);
 
-	// If no output directory is set, get it from source
-	if ( !binary_directory )
+	// Select which file to compile
+	if ( temporary_filepath )
 	{
-		binary_directory = g_path_get_dirname( source_filepath );
+		filename = temporary_filepath;
 	}
-	//g_printerr("binary_directory: %s\n", binary_directory);
-
-	// Strip file extension
-	output_filename = g_strdup( original_filename );
-	gchar * dotpos = g_utf8_strrchr( output_filename, -1, '.' );
-	if ( dotpos )
+	else
 	{
-		*dotpos = '\0';
+		filename = source_filepath;
 	}
 
-	//1: source file
-	fix_path( source_filepath );
-	arg_v[1] = g_strdup( source_filepath );
+	// Set output filename
+	output_filename = strip_file_extension( source_filename );
 
-	//2: global header path
-	arg_v[2] = g_strconcat( "-i", include_directory, NULL );
-
-	//3: project header path
-	if ( !routines_directory )
+	if ( project_directory )
 	{
-		routines_directory = g_build_path( G_DIR_SEPARATOR_S, binary_directory, "routines", NULL );
+		if ( g_str_has_prefix( source_filepath, project_directory ) )
+		{
+			char * dir = source_directory + strlen(project_directory);
+			output_directory = g_build_path(G_DIR_SEPARATOR_S, project_directory, "c", dir, NULL);
+		}
+		else
+		{
+			output_directory = g_strdup(project_directory);
+		}
 	}
-	arg_v[3] = g_strconcat( "-i", routines_directory, NULL );
+	else
+	{
+		output_directory = g_strdup(source_directory);
+	}
 
-	fix_path( original_filename );
+	output_filename_64 = g_strdup_printf( "%s.amx64", output_filename );
+	output_filename_32 = g_strdup_printf( "%s.amx", output_filename );
+
 
 	if ( xml_output )
 	{
 		xml_content = g_string_new("");
-		g_string_printf(xml_content, "<results file=\"%s\">\n", original_filename);
+		g_string_printf(xml_content, "<results file=\"%s\">\n", source_filename);
+	}
+	else
+	{
+		g_print( "Saving to %s %s\n", output_directory, output_filename_32 );
 	}
 
-
+	arg_v[1] = g_strdup( filename ); //1: source file
+	arg_v[2] = g_strconcat( "-i", include_directory, NULL ); //2: global header path
+	arg_v[3] = g_strconcat( "-i", routines_directory, NULL ); //3: project header path
 
 
 #if PAWN == 4
 
-
 	//4: output file
-	arg_v[4] = g_strconcat( "-o", binary_directory, G_DIR_SEPARATOR_S, output_filename, ".amx", NULL );
+	arg_v[4] = g_strconcat( "-o", output_directory, G_DIR_SEPARATOR_S, output_filename_32, NULL );
 	arg_v[5] = g_strdup("-C32");
 
-
-	if ( !xml_output )
-	{
-		g_print("Pawn Compiler (32bit)\n");
-		print_args( arg_c, arg_v );
-	}
-
-
+	//print_args(arg_c, arg_v);
 	compiler_main(arg_c, arg_v, handling_error_code);
-	
 
-
+	g_free(arg_v[4]);
+	g_free(arg_v[5]);
 
 	if ( !fatal_error_count )
 	{
+		//4: output file
+		arg_v[4] = g_strconcat( "-o", output_directory, G_DIR_SEPARATOR_S, output_filename_64, NULL );
+		arg_v[5] = g_strdup("-C64");
+
+		//print_args(arg_c, arg_v);
+		compiler_main(arg_c, arg_v, handling_error_code);
+
 		g_free(arg_v[4]);
 		g_free(arg_v[5]);
-
-
-		if ( !xml_output )
-		{
-			g_print("Pawn Compiler (64bit)\n");
-		}
-		//4: output file
-		arg_v[4] = g_strconcat( "-o", binary_directory, G_DIR_SEPARATOR_S, output_filename, ".amx64", NULL );
-		arg_v[5] = g_strdup("-C64");
-		compiler_main(arg_c, arg_v, handling_error_code);
-		//print_args( arg_c, arg_v );
-
 	}
 
 
 
 #else
-
+/*
 	arg_v[5] = g_strdup("-d1");
 	gchar * mod_path;
 
@@ -375,7 +398,7 @@ int main( int argc, char *argv[] )
 		g_warning("64bit Compiler not found %s %d\n%s", mod_path, g_file_test(mod_path,G_FILE_TEST_EXISTS), g_module_error() );
 	}
 
-
+*/
 #endif
 	if ( xml_output )
 	{
@@ -383,7 +406,7 @@ int main( int argc, char *argv[] )
 		if ( xml_content )
 			g_print( "%s", xml_content->str );
 		else
-			g_print("<error source=\"%s\"/>\n", original_filename);
+			g_print("<error source=\"%s\"/>\n", source_filepath);
 
 	}
 
@@ -392,10 +415,8 @@ int main( int argc, char *argv[] )
 	g_free(arg_v[1]);
 	g_free(arg_v[2]);
 	g_free(arg_v[3]);
-	g_free(arg_v[4]);
-	g_free(arg_v[5]);
-	g_free(arg_v);
-	return 42;
+	
+	return 0;
 }
 
 

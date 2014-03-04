@@ -15,4 +15,4 @@ PAWN=4
 #BUILDOS =
 
 
-include platform.mk
+include ../platform.mk

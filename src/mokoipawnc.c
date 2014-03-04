@@ -297,7 +297,10 @@ int main( int argc, char *argv[] )
 		xml_content = g_string_new("");
 		g_string_printf(xml_content, "<results file=\"%s\">\n", source_filename);
 	}
-
+	else
+	{
+		g_print( "Saving to %s %s\n", output_directory, output_filename_32 );
+	}
 
 	arg_v[1] = g_strdup( filename ); //1: source file
 	arg_v[2] = g_strconcat( "-i", include_directory, NULL ); //2: global header path
@@ -310,7 +313,7 @@ int main( int argc, char *argv[] )
 	arg_v[4] = g_strconcat( "-o", output_directory, G_DIR_SEPARATOR_S, output_filename_32, NULL );
 	arg_v[5] = g_strdup("-C32");
 
-	print_args(arg_c, arg_v);
+	//print_args(arg_c, arg_v);
 	compiler_main(arg_c, arg_v, handling_error_code);
 
 	g_free(arg_v[4]);
@@ -322,7 +325,7 @@ int main( int argc, char *argv[] )
 		arg_v[4] = g_strconcat( "-o", output_directory, G_DIR_SEPARATOR_S, output_filename_64, NULL );
 		arg_v[5] = g_strdup("-C64");
 
-		print_args(arg_c, arg_v);
+		//print_args(arg_c, arg_v);
 		compiler_main(arg_c, arg_v, handling_error_code);
 
 		g_free(arg_v[4]);
@@ -332,7 +335,7 @@ int main( int argc, char *argv[] )
 
 
 #else
-
+/*
 	arg_v[5] = g_strdup("-d1");
 	gchar * mod_path;
 
@@ -395,7 +398,7 @@ int main( int argc, char *argv[] )
 		g_warning("64bit Compiler not found %s %d\n%s", mod_path, g_file_test(mod_path,G_FILE_TEST_EXISTS), g_module_error() );
 	}
 
-
+*/
 #endif
 	if ( xml_output )
 	{
@@ -412,10 +415,8 @@ int main( int argc, char *argv[] )
 	g_free(arg_v[1]);
 	g_free(arg_v[2]);
 	g_free(arg_v[3]);
-	g_free(arg_v[4]);
-	g_free(arg_v[5]);
-	g_free(arg_v);
-	return 42;
+	
+	return 0;
 }
 
 
